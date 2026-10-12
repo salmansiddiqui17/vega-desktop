@@ -5,7 +5,7 @@ import { getBaseUrl } from "../providers/getBaseUrl";
 import { openWebView } from "../../platform/waf";
 import { extensionManager } from "./ExtensionManager";
 import { extensionStorage } from "../storage/extensionStorage";
-import { getSourceAuthHeaders } from "../storage/sourceTokenStorage";
+import { getSourceRequestHeaders } from "./sourceRequests";
 import { getProviderFilesUrl } from "../utils/helpers";
 import { getErrorMessage } from "./providerErrors";
 import {
@@ -637,7 +637,7 @@ export class ProviderManager {
               timeout: 8000,
               // Native fetch: no CORS preflight for the auth header.
               adapter: tauriAxiosAdapter,
-              headers: getSourceAuthHeaders(source?.author, sourceUrl),
+              headers: getSourceRequestHeaders(source?.author, sourceUrl),
             });
           }
         }

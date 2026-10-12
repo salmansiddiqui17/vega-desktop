@@ -569,14 +569,36 @@
 .source-picker-main {
   display: flex;
   min-width: 0;
+  min-height: 48px;
   flex: 1;
   align-items: center;
   gap: 11px;
   padding: 4px;
   border-radius: 8px;
+  cursor: pointer;
 }
 
-.source-picker-main > span:nth-child(2) {
+.source-picker-main:hover {
+  background: var(--surface-container-high);
+}
+
+.source-picker-badge {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--on-primary-container);
+  background: var(--primary-container);
+}
+
+.source-picker-main > svg {
+  flex-shrink: 0;
+  color: var(--on-surface);
+}
+
+.source-picker-copy {
   display: flex;
   min-width: 0;
   flex: 1;
@@ -587,9 +609,15 @@
 
 .source-picker-main strong,
 .source-picker-main small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.source-picker-main strong {
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .source-picker-main small {

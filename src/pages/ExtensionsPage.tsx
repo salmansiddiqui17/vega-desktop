@@ -430,7 +430,8 @@ export const ExtensionsPage: React.FC = () => {
         ...provider,
         version: provider.latestVersion || provider.version,
       };
-      await updateProvidersService.updateProvider(targetProvider);
+      const updated = await updateProvidersService.updateProvider(targetProvider);
+      if (!updated) return;
       const nextInstalled = extensionStorage.getInstalledProviders();
       setInstalledProviders(nextInstalled);
       toast({

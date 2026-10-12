@@ -70,9 +70,13 @@ export const SourcePickerDialog: React.FC<SourcePickerDialogProps> = ({
               {sources.map((source) => {
                 const selected = activeSource?.author === source.author;
                 return (
-                  <div className="source-picker-row" key={source.author}>
+                  <div
+                    className={`source-picker-item${selected ? " selected" : ""}`}
+                    key={source.author}
+                  >
                     <FocusableButton
-                      className={`source-picker-main ${selected ? "active" : ""}`}
+                      className="source-picker-main"
+                      aria-pressed={selected}
                       onClick={() => {
                         onApplySource(source);
                         onOpenChange(false);
@@ -93,7 +97,7 @@ export const SourcePickerDialog: React.FC<SourcePickerDialogProps> = ({
                             />
                           )}
                         </strong>
-                        <small>{source.url}</small>
+                        <small title={source.url}>{source.url}</small>
                       </div>
                       {selected && <Check size={20} />}
                     </FocusableButton>
@@ -102,6 +106,7 @@ export const SourcePickerDialog: React.FC<SourcePickerDialogProps> = ({
                       focusKey={`SOURCE_PICKER_REMOVE_${source.author}`}
                       onClick={() => onRequestRemoveSource(source)}
                       title={`Remove ${source.author}`}
+                      aria-label={`Remove ${source.author}`}
                     >
                       <Trash2 size={18} />
                     </FocusableButton>

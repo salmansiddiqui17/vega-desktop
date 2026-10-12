@@ -7,31 +7,21 @@ import {
   ProviderSource,
 } from "../storage/extensionStorage";
 import { mainStorage } from "../storage/StorageService";
+import { sourceTokenStorage } from "../storage/sourceTokenStorage";
 import {
-  getSourceAuthHeaders,
-  sourceTokenStorage,
-} from "../storage/sourceTokenStorage";
+  getSourceRequestHeaders,
+  throwIfRateLimited,
+  throwIfSourceForbidden,
+} from "./sourceRequests";
+export { isRateLimitError, throwIfRateLimited } from "./sourceRequests";
 import {
   createProviderSource,
   getProviderFilesUrl,
   isValidProviderPath,
 } from "../utils/helpers";
 
-export const isRateLimitError = (error: unknown): boolean => {
-  if (!error) return false;
-  const status =
-    (error as any)?.response?.status ??
-    (error as any)?.status;
-  if (status === 403 || status === 429) {
-    return true;
-  }
-  const msg = String((error as any)?.message || "").toLowerCase();
-  return msg.includes("rate limit") || msg.includes("status code 403") || msg.includes("status code 429");
-};
-
 // A private source answers 401, 403 or 404 when its token is wrong, expired
-// or has no access. Check this before throwIfRateLimited, which reads 403 as
-// a rate limit.
+// or has no access. Check this before reporting other source errors.
 const throwIfSourceAccessDenied = (error: unknown, author: string): void => {
   const status = (error as any)?.response?.status;
   if (
@@ -44,13 +34,6 @@ const throwIfSourceAccessDenied = (error: unknown, author: string): void => {
   }
 };
 
-export const throwIfRateLimited = (error: unknown): void => {
-  if (isRateLimitError(error)) {
-    throw new Error(
-      "GitHub API rate limit exceeded. Please wait a few minutes before trying again.",
-    );
-  }
-};
 /**
  * Extension manager service for handling dynamic provider loading
  */
@@ -138,7 +121,7 @@ export class ExtensionManager {
   }
 
   /**
-   * Fetch latest manifest from GitHub
+   * Fetch latest manifest from the configured provider source
    */
   async fetchManifest(
     sourceOrForce?: ProviderSource | boolean,
@@ -180,7 +163,7 @@ export class ExtensionManager {
         adapter: tauriAxiosAdapter,
         headers: this.testMode
           ? undefined
-          : getSourceAuthHeaders(activeSource.author, manifestUrl),
+          : getSourceRequestHeaders(activeSource.author, manifestUrl),
       });
 
       if (!response.data || !Array.isArray(response.data)) {
@@ -217,6 +200,7 @@ export class ExtensionManager {
         throwIfSourceAccessDenied(error, activeSource.author);
       }
       throwIfRateLimited(error);
+      throwIfSourceForbidden(error);
 
       // Return cached data if available
       const cached = extensionStorage.getManifestCache(activeSource.author);
@@ -256,7 +240,7 @@ export class ExtensionManager {
           const response = await axios.get(url, {
             timeout: 15000,
             adapter: tauriAxiosAdapter,
-            headers: getSourceAuthHeaders(sourceAuthor, url),
+            headers: getSourceRequestHeaders(sourceAuthor, url),
           });
 
           if (response.data) {
@@ -267,6 +251,7 @@ export class ExtensionManager {
             throwIfSourceAccessDenied(error, sourceAuthor);
           }
           throwIfRateLimited(error);
+          throwIfSourceForbidden(error);
           if (requiredFiles.includes(fileName)) {
             console.error(
               `Failed to download ${fileName}.js for ${providerValue}:`,
@@ -431,7 +416,10 @@ export class ExtensionManager {
   /**
    * Update a provider
    */
-  async updateProvider(provider: ProviderExtension): Promise<void> {
+  async updateProvider(provider: ProviderExtension): Promise<boolean> {
+    if (!extensionStorage.isProviderInstalled(provider.value, provider.source.author)) {
+      return false;
+    }
     try {
       // Download updated modules
       await this.downloadProviderModules(
@@ -442,10 +430,17 @@ export class ExtensionManager {
         provider.path,
       );
 
-      // Update installation record
+      // Uninstall or source removal during the download takes precedence.
+      if (!extensionStorage.isProviderInstalled(provider.value, provider.source.author)) {
+        extensionStorage.removeProviderModules(provider.value, provider.source.author);
+        return false;
+      }
+
+      // Update the existing installation record.
       extensionStorage.installProvider(provider);
 
       console.log(`Successfully updated provider: ${provider.display_name}`);
+      return true;
     } catch (error) {
       console.error(
         `Failed to update provider ${provider.display_name}:`,

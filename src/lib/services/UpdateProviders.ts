@@ -134,16 +134,7 @@ class UpdateProvidersService {
    */
   async updateProvider(provider: ProviderExtension): Promise<boolean> {
     try {
-      // Uninstall old version
-      extensionStorage.uninstallProvider(
-        provider.value,
-        provider.source?.author,
-      );
-
-      // Install new version
-      await extensionManager.installProvider(provider);
-
-      return true;
+      return await extensionManager.updateProvider(provider);
     } catch (error) {
       const isRateLimit =
         error instanceof Error &&
